@@ -1,5 +1,7 @@
 # Images-Upload-Maatwebsite-Laravel-Excel
 
+[Sample Image](https://pin.it/3QHQ93H)
+
 ## Import Controller 
 ```$imageSRC = array();
 $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($request->file('file'));
