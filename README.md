@@ -3,35 +3,54 @@
 [Sample Image](https://pin.it/3QHQ93H)
 
 ## Import Controller 
-```$imageSRC = array();
-$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($request->file('file'));
-$worksheet = $spreadsheet->getActiveSheet();
-$worksheetArray = $worksheet->toArray();
-array_shift($worksheetArray);
+```
+function import(Request $request) {
+        $this->validate($request, [
+            'file' => 'required|mimes:xls,xlsx'
+        ]);
 
-$worksheetArray = array_map('array_filter', $worksheetArray);
-$worksheetArray = array_filter($worksheetArray);
+        $imageSRC = array();
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($request->file('file'));
+        $worksheet = $spreadsheet->getActiveSheet();
+        $worksheetArray = $worksheet->toArray();
+        array_shift($worksheetArray);
 
-foreach ($worksheetArray as $key => $value)
-{
-    $worksheet = $spreadsheet->getActiveSheet();
-    if (isset($worksheet->getDrawingCollection()[$key])) {
-        $drawing = $worksheet->getDrawingCollection()[$key];
+        $worksheetArray = array_map('array_filter', $worksheetArray);
+        $worksheetArray = array_filter($worksheetArray);
 
-        $zipReader = fopen($drawing->getPath(), 'r');
-        $imageContents = '';
-        while (!feof($zipReader)) {
-            $imageContents .= fread($zipReader, 1024);
+        foreach ($worksheetArray as $key => $value)
+        {
+            $worksheet = $spreadsheet->getActiveSheet();
+            if (isset($worksheet->getDrawingCollection()[$key])) {
+                $drawing = $worksheet->getDrawingCollection()[$key];
+
+                $zipReader = fopen($drawing->getPath(), 'r');
+                $imageContents = '';
+                while (!feof($zipReader)) {
+                    $imageContents .= fread($zipReader, 1024);
+                }
+                fclose($zipReader);
+                $extension = $drawing->getExtension();
+
+                $imageSRC[$drawing->getCoordinates()] = "data:image/jpeg;base64," . base64_encode($imageContents);
+            }
         }
-        fclose($zipReader);
-        $extension = $drawing->getExtension();
 
-        $imageSRC[$drawing->getCoordinates()] = "data:image/jpeg;base64," . base64_encode($imageContents);
+        $import = new BulkImport($imageSRC);
+        Excel::import($import, $request->file('file'));
+
+        $excelError = $import->data['excel_error_key'];
+
+        array_shift($excelError);
+        $excelError = array_values($excelError);
+
+        $errorMessage = "";
+        if (!empty($excelError)) {
+            $errorMessage = "In excel may be some issue or blank data at rows " . implode(',', $excelError);
+        }
+
+        return back()->with('message', 'Excel Data Imported successfully. '.$errorMessage);
     }
-}
-
-$import = new BulkImport($imageSRC);
-Excel::import($import, $request->file('file'));
 ```
 
 ### BulkImport 
